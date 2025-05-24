@@ -155,5 +155,5 @@ def clean_text_for_llm(path="dataset.txt"):
 
 
 if __name__ == "__main__":
-    asyncio.run(crawl_recursive_batch(["https://en.wikipedia.org/wiki/Bayes%27_theorem"], max_depth=2, max_concurrent=10))
+    asyncio.run(crawl_recursive_batch(["https://ai.pydantic.dev/"], max_depth=2, max_concurrent=10))
     clean_text_for_llm()
