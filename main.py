@@ -21,6 +21,11 @@ class ScrapeRequest(BaseModel):
     tabs: int = 10
     cleaning: bool = True
 
+
+@app.get("/")
+def root():
+    return {"status": "Crawl API is live!"}
+
 @app.post("/scrape")
 async def start_scrape(req: ScrapeRequest, background_tasks: BackgroundTasks):
     job_id = str(uuid.uuid4())
