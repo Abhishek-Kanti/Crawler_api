@@ -2,6 +2,7 @@ import os
 import uuid
 import shutil
 import asyncio
+import subprocess
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -45,6 +46,10 @@ async def start_scrape(req: ScrapeRequest, background_tasks: BackgroundTasks):
     async def task():
         try:
             write_log("Starting scrape...")
+            
+            # Ensure Playwright browser is installed at runtime
+            subprocess.run(["playwright", "install", "--with-deps"], check=True)
+
             await crawl_recursive_batch(req.urls, max_depth=req.max_depth, max_concurrent=req.tabs, output_path=raw_path, log_fn=write_log)
             write_log("Scrape complete.")
             if req.cleaning:
