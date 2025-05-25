@@ -1,4 +1,5 @@
 import re
+import os
 import asyncio
 from urllib.parse import urldefrag
 from readability.readability import Document
@@ -8,7 +9,8 @@ from crawl4ai import (
     MemoryAdaptiveDispatcher
 )
 
-async def crawl_recursive_batch(start_urls, max_depth=3, max_concurrent=10, output_path="dataset.txt", log_fn=print):
+
+async def crawl_recursive_batch(start_urls, max_depth=3, max_concurrent=10, output_path="raw_dataset.txt", log_fn=print):
     browser_config = BrowserConfig(headless=True, verbose=False)
     run_config = CrawlerRunConfig(
         cache_mode=CacheMode.BYPASS,
@@ -75,12 +77,12 @@ async def crawl_recursive_batch(start_urls, max_depth=3, max_concurrent=10, outp
     # Save final dataset
     output_path = output_path
     with open(output_path, "w", encoding="utf-8") as f:
-        f.write("\n\n".join(all_text))
-    log_fn(f"\n✅ Dataset saved with {len(all_text)} pages.")
+        f.write("\n".join(all_text))
+    log_fn(f"\nDataset saved with {len(all_text)} pages.")
 
 
-def clean_text_for_llm(path="dataset.txt"):
-    with open(path, "r", encoding="utf-8") as f:
+def clean_text_for_llm(raw_path="raw_dataset.txt", final_path="cleaned_dataset.txt"):
+    with open(raw_path, "r", encoding="utf-8") as f:
         raw_text = f.read()
 
     # Split by double line breaks = page or topic boundaries
@@ -108,52 +110,32 @@ def clean_text_for_llm(path="dataset.txt"):
         if chunk:
             cleaned_chunks.append(chunk)
 
-    final_text = "\n\n".join(cleaned_chunks)
+    final_text = "\n".join(cleaned_chunks)
 
-    with open(path, "w", encoding="utf-8") as f:
+    mode = 'a' if os.path.exists(final_path) else 'w'
+    with open(final_path, mode, encoding='utf-8') as f:
+        if mode == 'a':
+            f.write('\n')  # Ensure it starts on a new line
         f.write(final_text)
 
-    print(f"✅ Cleaned dataset saved to '{path}'")
+    print(f"Cleaned dataset saved to '{final_path}'")
 
 
-# def clean_text_for_llm(path="dataset.txt", out_path="cleaned_dataset.txt"):
-#     with open(path, "r", encoding="utf-8") as f:
-#         raw_text = f.read()
+def extract_urls_from_file(file_path):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    # Split by *comma, space, or newline
+    raw_links = re.split(r'[\s]+', content)
 
-#     # Split by double line breaks = page or topic boundaries
-#     chunks = raw_text.split("\n\n")
+    # Remove empty strings and strip whitespace
+    links = [link.strip() for link in raw_links if link.strip()]
 
-#     cleaned_chunks = []
-#     for chunk in chunks:
-#         # Remove markdown links [text](url)
-#         chunk = re.sub(r"\[([^\]]+)\]\((https?://[^\)]+)\)", r"\1", chunk)
-
-#         # Remove raw URLs
-#         chunk = re.sub(r"https?://\S+", "", chunk)
-
-#         # Remove excess whitespace
-#         chunk = re.sub(r"[ \t]+", " ", chunk)
-#         chunk = re.sub(r"\n\s*", " ", chunk)
-#         chunk = re.sub(r"(?<=\w)\n(?=\w)", " ", chunk)
-
-#         # Remove space before punctuation like . , ! ? ; :
-#         chunk = re.sub(r"\s+([.,!?;:])", r"\1", chunk)
-
-#         # Strip leading/trailing
-#         chunk = chunk.strip()
-
-#         if chunk:
-#             cleaned_chunks.append(chunk)
-
-#     final_text = "\n\n".join(cleaned_chunks)
-
-#     with open(out_path, "w", encoding="utf-8") as f:
-#         f.write(final_text)
-
-#     print(f"✅ Cleaned dataset saved to '{out_path}'")
-
+    return links
 
 
 if __name__ == "__main__":
-    asyncio.run(crawl_recursive_batch(["https://ai.pydantic.dev/"], max_depth=2, max_concurrent=10))
+    links = extract_urls_from_file("links.txt")
+    print(f"Starting crawler on the following links: \n{links}")
+    asyncio.run(crawl_recursive_batch(links, max_depth=1, max_concurrent=10))
     clean_text_for_llm()
